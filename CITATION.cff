@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Shaunak"
+  given-names: "Perni"
+- family-names: "Minal"
+  given-names: "Shirodkar"
+title: "AQ Cloud Based Dashboard"
+version: 2.0.4
+date-released: 2024-09-02
+url: "https://github.com/dcst-goa-university/AQ-Cloud-Dashboard"
