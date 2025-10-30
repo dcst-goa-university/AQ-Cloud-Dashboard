@@ -1,80 +1,16 @@
-@startuml "AQ Cloud Dashboard Component Diagram"
-title "Component Diagram for AQ Cloud Dashboard"
-allow_mixing
-node "Raspberry Pi Sensor"{
-    component "Sensor Data Collector" as SensorDataCollector
-    database "DB for Weekly Data" as WeeklyDB
-    component "Data Uploader" as DataUploader
-    SensorDataCollector --> WeeklyDB : "Stores weekly data"
-    WeeklyDB --> DataUploader : "Gets Daily Data"
+@startuml "AQI Data Dashboard"
+component "DataAPI" as DataAPI
+component "Frontend" as Frontend
+component "Inference Task" as InferenceService
+cloud "Open Metro" as OpenMetro
 
+database "AQI Database" as AQIDB{
 }
 
-cloud "Supabase" {
-    database "Supabase Database" as SupabaseDB{
-        entity "Weekly_Data_X" as WeeklyData{
-            * id : UUID
-            * timestamp : TIMESTAMP
-            * pm2_5 : FLOAT
-            * pm10 : FLOAT
-            * no2 : FLOAT
-            * so2 : FLOAT
-            * co : FLOAT
-            * o3 : FLOAT
-            * temperature : FLOAT
-            * humidity : FLOAT
-            * aqi : INT
-        }
 
-        entity "Predictions_Y" as Predictions{
-            * id : UUID
-            * timestamp : TIMESTAMP
-            * predicted_aqi : INT
-        }
-    }
-}
-
-DataUploader -up---> SupabaseDB : "Uploads data to Supabase"
-
-cloud "Hugging Face"{
-    component "ML Inference App" as MLInferenceApp{
-        component "AQI Prediction Model" as AQIPredictionModel
-        component "Data Fetcher" as DataFetcher
-        component "Data Pusher" as DataPusher
-        SupabaseDB --> DataFetcher : "Fetches data from Supabase"
-        DataFetcher --> AQIPredictionModel : "Sends data for prediction"
-        AQIPredictionModel --> DataPusher : "Sends predictions"
-        DataPusher -up-> SupabaseDB : "Pushes predictions to Supabase"
-    }
-}
-
-cloud "Google Cloud"{
-    component "Cloud Runner" as CloudRunner{
-        component "AQI Predictions API" as AQIPredictionsAPI{
-            component AQIPredictionsAPIController
-            component AQIPredictionsAPIService
-            component AQIPredictionsAPIModel
-        }
-    }
-}
-
-AQIPredictionsAPIModel -up-> SupabaseDB : "Get Request Prediction Data"
-AQIPredictionsAPIService --> AQIPredictionsAPIModel : "Business Logic"
-AQIPredictionsAPIController --> AQIPredictionsAPIService : "Handles API Requests"
-
-
-node "Frontend Mobile App"{
-    component "React Native App" as ReactNativeApp{
-        component "Home Screen" as HomeScreen
-        component "AQI Chart Screen" as AQIChartScreen
-        component "Prediction Screen" as PredictionScreen
-        component "Settings Screen" as SettingsScreen
-        component "API Service" as APIService
-        AQIPredictionsAPI -down-> APIService : "Fetches Prediction Data"
-        HomeScreen -up-> APIService : "Fetches current AQI data"
-        AQIChartScreen -up-> APIService : "Fetches historical AQI data"
-        PredictionScreen -up-> APIService : "Fetches predicted AQI data"
-        SettingsScreen -up-> APIService : "Updates user settings"
-    }
-}
-@enduml
+DataAPI --> OpenMetro : "1. Request AQI Data"
+OpenMetro --> DataAPI : "2. Return AQI Data"
+DataAPI --> AQIDB : "3. Insert New AQI Data"
+AQIDB --> InferenceService : "4. Get Data For Inference"
+InferenceService --> AQIDB  : "5. Return Predictions Data"
+AQIDB --> Frontend : "6. Get Data"
