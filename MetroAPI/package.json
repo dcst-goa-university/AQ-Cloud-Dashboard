@@ -1,0 +1,11 @@
+{
+  "name": "metrodata-api",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run index.ts"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "express": "^5.1.0"
+  }
+}
