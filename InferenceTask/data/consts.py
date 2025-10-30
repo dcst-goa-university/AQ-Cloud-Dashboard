@@ -1,1 +1,0 @@
-table_name = "aqi_data"
