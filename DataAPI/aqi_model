@@ -1,0 +1,103 @@
+import requests
+import pandas as pd
+from prophet import Prophet
+
+# ---------------------------------------
+# Get user's city & coordinates
+# ---------------------------------------
+
+
+def get_user_location():
+    try:
+        geo_req = requests.get("https://ipinfo.io/json")
+        geo_data = geo_req.json()
+        city = geo_data.get("city", "Delhi")
+        loc = geo_data.get("loc", "28.6139,77.2090").split(",")
+        lat, lon = float(loc[0]), float(loc[1])
+        return city, lat, lon
+    except Exception:
+        # Fallback to Delhi if lookup fails
+        return "Delhi", 28.6139, 77.2090
+
+# ---------------------------------------
+# Fetch AQI data from Open-Meteo
+# ---------------------------------------
+
+
+def fetch_aqi_data(lat, lon):
+    url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&hourly=us_aqi"
+    res = requests.get(url)
+    data = res.json()
+
+    df = pd.DataFrame({
+        "datetime": data["hourly"]["time"],
+        "aqi": data["hourly"]["us_aqi"]
+    })
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    return df
+
+# ---------------------------------------
+# Categorize AQI
+# ---------------------------------------
+
+
+def categorize_aqi(aqi_value):
+    if aqi_value <= 50:
+        return "Good"
+    elif aqi_value <= 100:
+        return "Moderate"
+    elif aqi_value <= 150:
+        return "Unhealthy for Sensitive Groups"
+    elif aqi_value <= 200:
+        return "Unhealthy"
+    elif aqi_value <= 300:
+        return "Very Unhealthy"
+    else:
+        return "Hazardous"
+
+# ---------------------------------------
+# Forecast AQI using Prophet
+# ---------------------------------------
+
+
+def predict_future_aqi(df, hours_ahead=24):
+    aqi_prophet = df.rename(columns={"datetime": "ds", "aqi": "y"})
+    model = Prophet(daily_seasonality=True)
+    model.fit(aqi_prophet)
+    future = model.make_future_dataframe(periods=hours_ahead, freq="H")
+    forecast = model.predict(future)
+    return forecast
+
+# ---------------------------------------
+# Main function to get current & forecast data
+# ---------------------------------------
+
+
+def get_aqi_forecast():
+    city, lat, lon = get_user_location()
+    df = fetch_aqi_data(lat, lon)
+    df["category"] = df["aqi"].apply(categorize_aqi)
+
+    forecast = predict_future_aqi(df)
+
+    latest_aqi = float(df.iloc[-1]["aqi"])
+    latest_category = df.iloc[-1]["category"]
+
+    next_24h = forecast.tail(24)[["ds", "yhat"]].rename(
+        columns={"ds": "datetime", "yhat": "predicted_aqi"})
+    next_24h["predicted_category"] = next_24h["predicted_aqi"].apply(
+        categorize_aqi)
+
+    # Convert to Python-native types
+    next_24h["predicted_aqi"] = next_24h["predicted_aqi"].astype(float)
+    next_24h["datetime"] = next_24h["datetime"].astype(str)
+
+    # Build JSON-safe dictionary
+    return {
+        "city": str(city),
+        "current": {
+            "aqi": round(latest_aqi, 2),
+            "category": str(latest_category)
+        },
+        "forecast": next_24h.to_dict(orient="records")
+    }
