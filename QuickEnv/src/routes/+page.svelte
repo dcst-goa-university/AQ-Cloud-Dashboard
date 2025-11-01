@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getAirQuality } from '$lib/api/metroapi';
+	import type { TAirQualityResponse } from '$lib/types/aq';
 
-	let airData: any = null;
+	let airData: TAirQualityResponse | null = null;
 	let error: string | null = null;
 	let loading = true;
 	let position: GeolocationPosition | null = null;
@@ -46,7 +47,7 @@
 {:else}
 	<section class="p-4">
 		<h2 class="text-xl font-semibold mb-2">Air Quality</h2>
-		<p>Latitude: {airData.location.lat}, Longitude: {airData.location.lon}</p>
-		<p>European AQI: {airData.hourly.european_aqi?.[0]}</p>
+		<p>Latitude: {airData?.location.lat}, Longitude: {airData?.location.lon}</p>
+		<p>European AQI: {airData?.hourly.european_aqi?.[0]}</p>
 	</section>
 {/if}
