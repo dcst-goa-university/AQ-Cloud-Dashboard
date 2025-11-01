@@ -1,15 +1,61 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import axios from "axios";
 
-export async function httpGetFunction(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    context.log(`Http function processed request for url "${request.url}"`);
+export async function airqualityHandler(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  context.log(`HTTP GET airquality request: ${request.url}`);
 
-    const name = request.query.get('name') || await request.text() || 'world';
+  const lat = request.query.get("lat");
+  const lon = request.query.get("lon");
+  const past_days = request.query.get("past_days") || "5";
+  const forecast_days = request.query.get("forecast_days") || "3";
 
-    return { body: `Hello, ${name}!` };
-};
+  if (!lat || !lon) {
+    return {
+      status: 400,
+      jsonBody: { error: "lat and lon required" },
+    };
+  }
 
-app.http('httpget', {
-    methods: ['GET'],
-    authLevel: 'function',
-    handler: httpGetFunction
+  try {
+    const { data } = await axios.get(
+      "https://air-quality-api.open-meteo.com/v1/air-quality",
+      {
+        params: {
+          latitude: lat,
+          longitude: lon,
+          hourly: [
+            "european_aqi", "pm10", "pm2_5", "carbon_monoxide", "carbon_dioxide",
+            "nitrogen_dioxide", "sulphur_dioxide", "ozone", "aerosol_optical_depth",
+            "dust", "methane", "uv_index",
+          ],
+          past_days,
+          forecast_days,
+        },
+      }
+    );
+
+    return {
+      status: 200,
+      jsonBody: {
+        location: { lat, lon },
+        hourly: data.hourly,
+      },
+    };
+  } catch (err: any) {
+    context.log(`Error fetching air quality data: ${err.message}`);
+    return {
+      status: 500,
+      jsonBody: { error: "Failed to fetch air quality data" },
+    };
+  }
+}
+
+// ✅ Register the function at startup (this is what Azure Functions expects)
+app.http("airquality", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  handler: airqualityHandler,
 });
