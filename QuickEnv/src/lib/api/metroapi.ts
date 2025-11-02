@@ -15,10 +15,11 @@ export const getAirQuality = async (
 	});
 
 	try {
-		let a = `${PUBLIC_VITE_API_BASE}/api/airquality?${params.toString()}`
-		console.log("Fetching air quality data from:", a);
-		// In local and production this works because SWA routes /api/* correctly
-		const res = await fetch(a);
+		const base = PUBLIC_VITE_API_BASE || ''; // If empty, will use relative path
+		const url = `${base}/api/airquality?${params.toString()}`;
+		console.log("Fetching air quality data from:", url);
+		const res = await fetch(url);
+
 
 		if (!res.ok) {
 			throw new Error(`API request failed with ${res.status}`);
